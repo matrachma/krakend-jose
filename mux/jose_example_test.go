@@ -10,11 +10,11 @@ import (
 	"os"
 	"time"
 
-	krakendjose "github.com/devopsfaith/krakend-jose"
 	"github.com/devopsfaith/krakend/config"
 	"github.com/devopsfaith/krakend/logging"
 	"github.com/devopsfaith/krakend/proxy"
 	muxkrakend "github.com/devopsfaith/krakend/router/mux"
+	krakendjose "github.com/matrachma/krakend-jose"
 )
 
 func Example_RS256() {

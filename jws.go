@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	ValidatorNamespace = "github.com/devopsfaith/krakend-jose/validator"
-	SignerNamespace    = "github.com/devopsfaith/krakend-jose/signer"
+	ValidatorNamespace = "github.com/matrachma/krakend-jose/validator"
+	SignerNamespace    = "github.com/matrachma/krakend-jose/signer"
 	defaultRolesKey    = "roles"
 )
 
