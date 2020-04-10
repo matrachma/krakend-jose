@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devopsfaith/krakend/proxy"
 	"strings"
 
 	"github.com/auth0-community/go-auth0"
@@ -84,6 +85,82 @@ func getSignerConfig(cfg *config.EndpointConfig) (*SignerConfig, error) {
 		return res, ErrInsecureJWKSource
 	}
 	return res, nil
+}
+
+func NewJWKClient(cfg *config.EndpointConfig, te auth0.RequestTokenExtractor) (*SignerConfig, *auth0.JWKClient, error) {
+	signerCfg, err := getSignerConfig(cfg)
+	if err != nil {
+		return signerCfg, &auth0.JWKClient{}, err
+	}
+
+	decodedFs, err := DecodeFingerprints(signerCfg.Fingerprints)
+	if err != nil {
+		return signerCfg, &auth0.JWKClient{}, err
+	}
+
+	spcfg := SecretProviderConfig{
+		URI:           signerCfg.URI,
+		Cs:            signerCfg.CipherSuites,
+		Fingerprints:  decodedFs,
+		LocalCA:       signerCfg.LocalCA,
+		AllowInsecure: signerCfg.DisableJWKSecurity,
+	}
+
+	sp, err := SecretProvider(spcfg, te)
+	if err != nil {
+		return signerCfg, &auth0.JWKClient{}, err
+	}
+
+	return signerCfg, sp, nil
+}
+
+func NewSignerNew(signerCfg *SignerConfig, sp *auth0.JWKClient, response *proxy.Response) (Signer, error) {
+	tmpKid, ok := response.Data["kid"]
+	if !ok {
+		return nopSigner, errors.New("no kid on response")
+	}
+
+	kid, ok := tmpKid.(string)
+	if !ok {
+		return nopSigner, errors.New("kid not a string")
+	}
+
+	tmpAlg, ok := response.Data["alg"]
+	if !ok {
+		return nopSigner, errors.New("no alg on response")
+	}
+
+	alg, ok := tmpAlg.(string)
+	if !ok {
+		return nopSigner, errors.New("alg not a string")
+	}
+
+	key, err := sp.GetKey(kid)
+	if err != nil {
+		return nopSigner, err
+	}
+	if key.IsPublic() {
+		// TODO: we should not sign with a public key
+	}
+	signingKey := jose.SigningKey{
+		Key:       key.Key,
+		Algorithm: jose.SignatureAlgorithm(alg),
+	}
+	opts := &jose.SignerOptions{
+		ExtraHeaders: map[jose.HeaderKey]interface{}{
+			jose.HeaderKey("kid"): key.KeyID,
+		},
+	}
+	s, err := jose.NewSigner(signingKey, opts)
+	if err != nil {
+		return nopSigner, err
+	}
+
+	if signerCfg.FullSerialization {
+		return fullSerializeSigner{signer{s}}.Sign, nil
+	}
+
+	return compactSerializeSigner{signer{s}}.Sign, nil
 }
 
 func NewSigner(cfg *config.EndpointConfig, te auth0.RequestTokenExtractor) (*SignerConfig, Signer, error) {

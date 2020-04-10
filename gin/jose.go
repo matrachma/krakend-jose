@@ -23,7 +23,8 @@ func HandlerFactory(hf ginkrakend.HandlerFactory, logger logging.Logger, rejecte
 
 func TokenSigner(hf ginkrakend.HandlerFactory, logger logging.Logger) ginkrakend.HandlerFactory {
 	return func(cfg *config.EndpointConfig, prxy proxy.Proxy) gin.HandlerFunc {
-		signerCfg, signer, err := krakendjose.NewSigner(cfg, nil)
+		signerCfg, sp, err := krakendjose.NewJWKClient(cfg, nil)
+		// signerCfg, signer, err := krakendjose.NewSigner(cfg, nil)
 		if err == krakendjose.ErrNoSignerCfg {
 			logger.Info("JOSE: singer disabled for the endpoint", cfg.Endpoint)
 			return hf(cfg, prxy)
@@ -49,6 +50,13 @@ func TokenSigner(hf ginkrakend.HandlerFactory, logger logging.Logger) ginkrakend
 			}
 
 			if response == nil {
+				c.AbortWithStatus(http.StatusBadRequest)
+				return
+			}
+
+			signer, err := krakendjose.NewSignerNew(signerCfg, sp, response)
+			if err != nil {
+				logger.Error(err.Error())
 				c.AbortWithStatus(http.StatusBadRequest)
 				return
 			}
