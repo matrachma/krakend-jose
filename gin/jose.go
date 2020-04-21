@@ -38,6 +38,7 @@ func TokenSigner(hf ginkrakend.HandlerFactory, logger logging.Logger) ginkrakend
 		logger.Info("JOSE: singer enabled for the endpoint", cfg.Endpoint)
 
 		return func(c *gin.Context) {
+			unwantedKeys := []string{"kid", "alg"}
 			proxyReq := ginkrakend.NewRequest(cfg.HeadersToPass)(c, cfg.QueryString)
 			ctx, cancel := context.WithTimeout(c, cfg.Timeout)
 			defer cancel()
@@ -70,6 +71,11 @@ func TokenSigner(hf ginkrakend.HandlerFactory, logger logging.Logger) ginkrakend
 			for k, v := range response.Metadata.Headers {
 				c.Header(k, v[0])
 			}
+
+			for _, v := range unwantedKeys {
+				delete(response.Data, v)
+			}
+
 			c.JSON(response.Metadata.StatusCode, response.Data)
 		}
 	}
