@@ -82,13 +82,6 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 .idea/
-/reservationsvc
-/settings/config-dev.yaml
-/settings/config-stg.yaml
-/settings/config-prod.yaml
-/play
-/cmd/play.go
-/log.log
 
 vendor
 coverage.out
